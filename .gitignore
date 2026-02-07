@@ -1,15 +1,46 @@
-# Prerequisites
+# --- Build Outputs ---
+Debug/
+Release/
+bin/
+obj/
+
+# --- Binary/Executable Files ---
+*.elf
+*.bin
+*.hex
+*.map
+*.o
 *.d
+*.su
+*.cyclo
+
+# --- STM32CubeIDE / Eclipse Specific ---
+.settings/
+*.launch
+.metadata/
+RemoteSystemsTempFiles/
+
+# --- User Specific / Local Settings ---
+*.user
+*.bak
+*.tmp
+*~
+
+# --- System Files ---
+.DS_Store
+Thumbs.db
+
+
+
+
+# Prerequisites
 
 # Object files
-*.o
 *.ko
 *.obj
-*.elf
 
 # Linker output
 *.ilk
-*.map
 *.exp
 
 # Precompiled Headers
@@ -34,11 +65,9 @@
 *.app
 *.i*86
 *.x86_64
-*.hex
 
 # Debug files
 *.dSYM/
-*.su
 *.idb
 *.pdb
 
