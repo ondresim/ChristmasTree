@@ -36,6 +36,7 @@ extern "C" {
 #include "stm32f0xx_ll_utils.h"
 #include "stm32f0xx_ll_pwr.h"
 #include "stm32f0xx_ll_dma.h"
+#include "stm32f0xx_ll_tim.h"
 #include "stm32f0xx_ll_gpio.h"
 
 #if defined(USE_FULL_ASSERT)
@@ -50,6 +51,8 @@ extern "C" {
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
 
+extern volatile int current_bjt;
+extern volatile uint32_t brightness[4][4];
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
@@ -60,12 +63,31 @@ extern "C" {
 /* Exported macro ------------------------------------------------------------*/
 /* USER CODE BEGIN EM */
 
+
+#define BJT_ALL_OFF 0
+#define BJT_0 GPIO_ODR_10
+#define BJT_1 GPIO_ODR_11
+#define BJT_2 GPIO_ODR_12
+#define BJT_3 GPIO_ODR_13
+#define BJT_MASK (GPIO_ODR_10 | GPIO_ODR_11 | GPIO_ODR_12 | GPIO_ODR_13)
+
+#define DIODES_ALL_OFF 0
+#define DIODE_0 GPIO_ODR_0
+#define DIODE_1 GPIO_ODR_1
+#define DIODE_2 GPIO_ODR_2
+#define DIODE_3 GPIO_ODR_3
+#define DIODES_MASK (GPIO_ODR_0 | GPIO_ODR_1 | GPIO_ODR_2 | GPIO_ODR_3)
+
 /* USER CODE END EM */
 
 /* Exported functions prototypes ---------------------------------------------*/
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
+
+int selectBJT(uint32_t Pin);
+int setDiodesState(uint32_t Pins);
+
 
 /* USER CODE END EFP */
 

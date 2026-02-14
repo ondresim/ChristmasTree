@@ -37,21 +37,26 @@
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
 
-#define BJT_0 GPIO_ODR_10
-#define BJT_1 GPIO_ODR_11
-#define BJT_2 GPIO_ODR_12
-#define BJT_3 GPIO_ODR_13
-
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
 
+volatile int current_bjt;
+volatile uint32_t brightness[4][4] = {
+										{1000, 15000, 1000, 1000},
+										{15000, 15000, 1000, 1000},
+										{1000, 1000, 1000, 1000},
+										{1000, 1000, 1000, 1000}
+									 };
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
+static void MX_TIM1_Init(void);
+static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -59,9 +64,32 @@ void SystemClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-void selectColumn(uint32_t Pin)
+int selectBJT(uint32_t Pin)
 {
-	GPIOB->ODR = (GPIOB->ODR & ~(GPIO_ODR_10 | GPIO_ODR_11 | GPIO_ODR_12 | GPIO_ODR_13)) | Pin;
+	if( (Pin & (Pin - 1)) != 0 ||  (Pin & BJT_MASK) != Pin){
+		return -1;
+	}
+
+	GPIOB->ODR = (GPIOB->ODR & ~BJT_MASK);
+
+	// wait until transistor is switched OFF
+	__NOP();
+	__NOP();
+	__NOP();
+
+	GPIOB->ODR |= Pin;
+	return 0;
+}
+
+int setDiodesState(uint32_t Pins)
+{
+	if((Pins & DIODES_MASK) != Pins){
+		return -1;
+	}
+
+	GPIOB->ODR = (GPIOB->ODR & ~DIODES_MASK) | Pins;
+
+	return 0;
 }
 
 /* USER CODE END 0 */
@@ -98,6 +126,8 @@ int main(void)
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
+  MX_TIM1_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
 
   /* 1. Enable the Clock for the GPIO Port */
@@ -125,8 +155,30 @@ int main(void)
     LL_GPIO_SetPinPull(GPIOB, LL_GPIO_PIN_1, LL_GPIO_PULL_NO);
 
   // To Set High
-  LL_GPIO_SetOutputPin(GPIOB, LL_GPIO_PIN_0);
-  LL_GPIO_SetOutputPin(GPIOB, LL_GPIO_PIN_1);
+  selectBJT(BJT_ALL_OFF);
+  setDiodesState(DIODES_ALL_OFF);
+
+  ////LL_GPIO_SetOutputPin(GPIOB, LL_GPIO_PIN_0);
+  ////LL_GPIO_SetOutputPin(GPIOB, LL_GPIO_PIN_1);
+
+
+  for(volatile int i = 0; i < 100; i++);
+
+  LL_TIM_EnableIT_UPDATE(TIM1);
+  LL_TIM_EnableIT_CC1(TIM1);
+  LL_TIM_EnableIT_CC2(TIM1);
+  LL_TIM_EnableIT_CC3(TIM1);
+  LL_TIM_EnableIT_CC4(TIM1);
+  LL_TIM_EnableIT_UPDATE(TIM3);
+
+  LL_TIM_ClearFlag_UPDATE(TIM1);
+  LL_TIM_ClearFlag_CC1(TIM1);
+  LL_TIM_ClearFlag_CC2(TIM1);
+  LL_TIM_ClearFlag_CC3(TIM1);
+  LL_TIM_ClearFlag_CC4(TIM1);
+
+  LL_TIM_EnableCounter(TIM1);
+  LL_TIM_EnableCounter(TIM3);
 
   /* USER CODE END 2 */
 
@@ -137,6 +189,14 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+
+	  /*
+	  LL_mDelay(1200);
+	  new_diode_state = DIODES_ALL_OFF;
+	  LL_mDelay(1200);
+	  new_diode_state = DIODES_MASK;
+	  */
+
   }
   /* USER CODE END 3 */
 }
@@ -170,6 +230,114 @@ void SystemClock_Config(void)
   }
   LL_Init1msTick(8000000);
   LL_SetSystemCoreClock(8000000);
+}
+
+/**
+  * @brief TIM1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM1_Init(void)
+{
+
+  /* USER CODE BEGIN TIM1_Init 0 */
+
+  /* USER CODE END TIM1_Init 0 */
+
+  LL_TIM_InitTypeDef TIM_InitStruct = {0};
+  LL_TIM_OC_InitTypeDef TIM_OC_InitStruct = {0};
+  LL_TIM_BDTR_InitTypeDef TIM_BDTRInitStruct = {0};
+
+  /* Peripheral clock enable */
+  LL_APB1_GRP2_EnableClock(LL_APB1_GRP2_PERIPH_TIM1);
+
+  /* TIM1 interrupt Init */
+  NVIC_SetPriority(TIM1_BRK_UP_TRG_COM_IRQn, 0);
+  NVIC_EnableIRQ(TIM1_BRK_UP_TRG_COM_IRQn);
+  NVIC_SetPriority(TIM1_CC_IRQn, 0);
+  NVIC_EnableIRQ(TIM1_CC_IRQn);
+
+  /* USER CODE BEGIN TIM1_Init 1 */
+
+  /* USER CODE END TIM1_Init 1 */
+  TIM_InitStruct.Prescaler = 0;
+  TIM_InitStruct.CounterMode = LL_TIM_COUNTERMODE_UP;
+  TIM_InitStruct.Autoreload = 20000;
+  TIM_InitStruct.ClockDivision = LL_TIM_CLOCKDIVISION_DIV1;
+  TIM_InitStruct.RepetitionCounter = 0;
+  LL_TIM_Init(TIM1, &TIM_InitStruct);
+  LL_TIM_DisableARRPreload(TIM1);
+  LL_TIM_SetClockSource(TIM1, LL_TIM_CLOCKSOURCE_INTERNAL);
+  TIM_OC_InitStruct.OCMode = LL_TIM_OCMODE_ACTIVE;
+  TIM_OC_InitStruct.OCState = LL_TIM_OCSTATE_DISABLE;
+  TIM_OC_InitStruct.OCNState = LL_TIM_OCSTATE_DISABLE;
+  TIM_OC_InitStruct.CompareValue = 0;
+  TIM_OC_InitStruct.OCPolarity = LL_TIM_OCPOLARITY_HIGH;
+  TIM_OC_InitStruct.OCNPolarity = LL_TIM_OCPOLARITY_HIGH;
+  TIM_OC_InitStruct.OCIdleState = LL_TIM_OCIDLESTATE_LOW;
+  TIM_OC_InitStruct.OCNIdleState = LL_TIM_OCIDLESTATE_LOW;
+  LL_TIM_OC_Init(TIM1, LL_TIM_CHANNEL_CH1, &TIM_OC_InitStruct);
+  LL_TIM_OC_DisableFast(TIM1, LL_TIM_CHANNEL_CH1);
+  LL_TIM_OC_Init(TIM1, LL_TIM_CHANNEL_CH2, &TIM_OC_InitStruct);
+  LL_TIM_OC_DisableFast(TIM1, LL_TIM_CHANNEL_CH2);
+  LL_TIM_OC_Init(TIM1, LL_TIM_CHANNEL_CH3, &TIM_OC_InitStruct);
+  LL_TIM_OC_DisableFast(TIM1, LL_TIM_CHANNEL_CH3);
+  LL_TIM_OC_Init(TIM1, LL_TIM_CHANNEL_CH4, &TIM_OC_InitStruct);
+  LL_TIM_OC_DisableFast(TIM1, LL_TIM_CHANNEL_CH4);
+  LL_TIM_SetTriggerOutput(TIM1, LL_TIM_TRGO_RESET);
+  LL_TIM_DisableMasterSlaveMode(TIM1);
+  TIM_BDTRInitStruct.OSSRState = LL_TIM_OSSR_DISABLE;
+  TIM_BDTRInitStruct.OSSIState = LL_TIM_OSSI_DISABLE;
+  TIM_BDTRInitStruct.LockLevel = LL_TIM_LOCKLEVEL_OFF;
+  TIM_BDTRInitStruct.DeadTime = 0;
+  TIM_BDTRInitStruct.BreakState = LL_TIM_BREAK_DISABLE;
+  TIM_BDTRInitStruct.BreakPolarity = LL_TIM_BREAK_POLARITY_HIGH;
+  TIM_BDTRInitStruct.AutomaticOutput = LL_TIM_AUTOMATICOUTPUT_DISABLE;
+  LL_TIM_BDTR_Init(TIM1, &TIM_BDTRInitStruct);
+  /* USER CODE BEGIN TIM1_Init 2 */
+
+  /* USER CODE END TIM1_Init 2 */
+
+}
+
+/**
+  * @brief TIM3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM3_Init(void)
+{
+
+  /* USER CODE BEGIN TIM3_Init 0 */
+
+  /* USER CODE END TIM3_Init 0 */
+
+  LL_TIM_InitTypeDef TIM_InitStruct = {0};
+
+  /* Peripheral clock enable */
+  LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_TIM3);
+
+  /* TIM3 interrupt Init */
+  NVIC_SetPriority(TIM3_IRQn, 0);
+  NVIC_EnableIRQ(TIM3_IRQn);
+
+  /* USER CODE BEGIN TIM3_Init 1 */
+
+  /* USER CODE END TIM3_Init 1 */
+  TIM_InitStruct.Prescaler = 0;
+  TIM_InitStruct.CounterMode = LL_TIM_COUNTERMODE_UP;
+  TIM_InitStruct.Autoreload = 200;
+  TIM_InitStruct.ClockDivision = LL_TIM_CLOCKDIVISION_DIV1;
+  LL_TIM_Init(TIM3, &TIM_InitStruct);
+  LL_TIM_DisableARRPreload(TIM3);
+  LL_TIM_SetClockSource(TIM3, LL_TIM_CLOCKSOURCE_INTERNAL);
+  LL_TIM_SetOnePulseMode(TIM3, LL_TIM_ONEPULSEMODE_SINGLE);
+  LL_TIM_SetTriggerOutput(TIM3, LL_TIM_TRGO_RESET);
+  LL_TIM_DisableMasterSlaveMode(TIM3);
+  /* USER CODE BEGIN TIM3_Init 2 */
+
+  /* USER CODE END TIM3_Init 2 */
+
 }
 
 /* USER CODE BEGIN 4 */
