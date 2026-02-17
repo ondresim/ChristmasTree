@@ -152,11 +152,15 @@ void TIM1_BRK_UP_TRG_COM_IRQHandler(void)
 	if (LL_TIM_IsActiveFlag_UPDATE(TIM1))
 	{
 		LL_TIM_ClearFlag_UPDATE(TIM1);
+		LL_TIM_ClearFlag_CC1(TIM1);
+		LL_TIM_ClearFlag_CC2(TIM1);
+		LL_TIM_ClearFlag_CC3(TIM1);
+		LL_TIM_ClearFlag_CC4(TIM1);
 
 		static int i = 0;
 
 		// enable rows
-		pins = DIODES_MASK;
+		pins = DIODES_ALL_OFF;
 		setDiodesState(pins);
 
 		switch(i){
@@ -195,6 +199,8 @@ void TIM1_BRK_UP_TRG_COM_IRQHandler(void)
 		}
 		i++;
 		i = i % 4;
+
+		LL_TIM_DisableIT_UPDATE(TIM1);
 	}
 
 
@@ -211,27 +217,45 @@ void TIM1_CC_IRQHandler(void)
 {
   /* USER CODE BEGIN TIM1_CC_IRQn 0 */
 
+	static int i = 0;
+
 	if(LL_TIM_IsActiveFlag_CC1(TIM1)){
 		LL_TIM_ClearFlag_CC1(TIM1);
+		i++;
 
-		pins &= ~DIODE_0;
+		if(LL_TIM_OC_GetCompareCH1(TIM1) != 0){
+			pins |= DIODE_0;
+		}
 	}
-	else if(LL_TIM_IsActiveFlag_CC2(TIM1)){
+
+	if(LL_TIM_IsActiveFlag_CC2(TIM1)){
 		LL_TIM_ClearFlag_CC2(TIM1);
-
-		pins &= ~DIODE_1;
+		i++;
+		if(LL_TIM_OC_GetCompareCH2(TIM1) != 0){
+			pins |= DIODE_1;
+		}
 	}
-	else if(LL_TIM_IsActiveFlag_CC3(TIM1)){
+
+	if(LL_TIM_IsActiveFlag_CC3(TIM1)){
 		LL_TIM_ClearFlag_CC3(TIM1);
-
-		pins &= ~DIODE_2;
+		i++;
+		if(LL_TIM_OC_GetCompareCH3(TIM1) != 0){
+			pins |= DIODE_2;
+		}
 	}
-	else if(LL_TIM_IsActiveFlag_CC4(TIM1)){
+
+	if(LL_TIM_IsActiveFlag_CC4(TIM1)){
 		LL_TIM_ClearFlag_CC4(TIM1);
-
-		pins &= ~DIODE_3;
+		i++;
+		if(LL_TIM_OC_GetCompareCH4(TIM1) != 0){
+			pins |= DIODE_3;
+		}
 	}
 
+	if(i == 4){
+		LL_TIM_EnableIT_UPDATE(TIM1);
+		i = 0;
+	}
 
 	setDiodesState(pins);
   /* USER CODE END TIM1_CC_IRQn 0 */
